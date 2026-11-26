@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Notas — ThePower</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Gestor de Notas</h1>
+        <p class="subtitle" id="lastUpdate">Carga tu archivo .json o .csv exportado desde la plataforma</p>
+      </div>
+      <div class="header-actions">
+        <label class="btn-upload btn-primary">
+          <span>Cargar JSON / CSV</span>
+          <input type="file" id="fileInput" accept=".json,.csv" hidden />
+        </label>
+        <button id="btnToggleDates" class="hidden">Fechas trimestres</button>
+        <button id="btnExport" class="hidden">Exportar CSV</button>
+        <button id="btnClear" class="hidden">Limpiar</button>
+      </div>
+    </header>
+
+    <!-- Configuración editable de fechas de corte -->
+    <section id="datesPanel" class="dates-panel hidden">
+      <div class="field">
+        <label for="dateT1">Fin 1.er Trimestre</label>
+        <input type="date" id="dateT1" value="2026-11-23" />
+      </div>
+      <div class="field">
+        <label for="dateT2">Fin 2.º Trimestre</label>
+        <input type="date" id="dateT2" value="2027-02-19" />
+      </div>
+      <div class="field">
+        <label for="dateT3">Fin 3.er Trimestre</label>
+        <input type="date" id="dateT3" value="2027-06-18" />
+      </div>
+      <button id="btnApplyDates" class="btn-primary">Recalcular trimestres</button>
+    </section>
+
+    <!-- Zona de carga -->
+    <div id="dropzone" class="dropzone">
+      <strong>Arrastra aquí tu archivo <code>notas_thepower_YYYY-MM-DD.json</code> o <code>.csv</code></strong>
+      <p>Clasifica automáticamente las tareas por trimestre según su fecha de entrega.</p>
+    </div>
+
+    <!-- Dashboard principal -->
+    <main id="dashboard" class="hidden">
+      <!-- Barra de Trimestres -->
+      <div class="term-bar">
+        <div class="term-tabs" id="termTabs">
+          <button class="term-tab active" data-term="">Todos <span class="term-count" id="countAll">(0)</span></button>
+          <button class="term-tab" data-term="1º Trimestre">1.er Trimestre <span class="term-count" id="countT1">(0)</span></button>
+          <button class="term-tab" data-term="2º Trimestre">2.º Trimestre <span class="term-count" id="countT2">(0)</span></button>
+          <button class="term-tab" data-term="3º Trimestre">3.er Trimestre <span class="term-count" id="countT3">(0)</span></button>
+        </div>
+        <span class="subtitle" id="termRangeLabel">Curso completo</span>
+      </div>
+
+      <!-- KPIs -->
+      <section class="kpis">
+        <div class="kpi-card">
+          <div class="kpi-label">Media (Selección)</div>
+          <div class="kpi-value" id="kpiAvg">-</div>
+          <div class="kpi-sub" id="kpiAvgSub">0 entregas calificadas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Entregas Totales</div>
+          <div class="kpi-value" id="kpiTotal">0</div>
+          <div class="kpi-sub" id="kpiApproved">0 aprobadas</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Pendientes de Nota</div>
+          <div class="kpi-value" id="kpiPending">0</div>
+          <div class="kpi-sub">Sin calificar aún</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Nota Más Alta</div>
+          <div class="kpi-value" id="kpiMax">-</div>
+          <div class="kpi-sub" id="kpiMin">Mínima: -</div>
+        </div>
+      </section>
+
+      <!-- Tarjetas por asignatura -->
+      <h2 class="section-title">Resumen por Asignatura en este periodo (haz clic para filtrar)</h2>
+      <section class="subjects-grid" id="subjectsGrid"></section>
+
+      <!-- Barra de filtros -->
+      <section class="filters">
+        <div class="field">
+          <label for="searchInput">Buscar tarea o módulo</label>
+          <input type="text" id="searchInput" placeholder="Ej. Actividad 1, Spring Boot, UD2..." />
+        </div>
+        <div class="field">
+          <label for="subjectSelect">Asignatura</label>
+          <select id="subjectSelect">
+            <option value="">Todas las asignaturas</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="statusSelect">Estado</label>
+          <select id="statusSelect">
+            <option value="">Todos</option>
+            <option value="CALIFICADA">Solo calificadas</option>
+            <option value="SIN_CALIFICAR">Sin calificar</option>
+            <option value="APPROVED">APPROVED</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="minGrade">Nota mín.</label>
+          <input type="number" id="minGrade" min="0" max="10" step="0.1" placeholder="0" />
+        </div>
+        <div class="field">
+          <label for="maxGrade">Nota máx.</label>
+          <input type="number" id="maxGrade" min="0" max="10" step="0.1" placeholder="10" />
+        </div>
+        <button id="btnResetFilters">Resetear</button>
+      </section>
+
+      <!-- Tabla -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="Trimestre">Trimestre ↕</th>
+              <th data-sort="FechaTimestamp">Fecha ↕</th>
+              <th data-sort="Asignatura">Asignatura ↕</th>
+              <th data-sort="Modulo">Módulo ↕</th>
+              <th data-sort="Tarea">Tarea ↕</th>
+              <th data-sort="Estado">Estado ↕</th>
+              <th data-sort="NotaNum">Nota ↕</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Detalle -->
+  <div id="detailModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div>
+          <div class="modal-subject" id="modalSubject">Asignatura</div>
+          <h3 class="modal-title" id="modalTitle">Título de la tarea</h3>
+        </div>
+        <button class="modal-close" id="btnCloseModal" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-summary">
+        <div class="modal-score-big" id="modalScore">-</div>
+        <div>
+          <div id="modalStatusBadge"></div>
+          <div class="subtitle" id="modalModule">Módulo</div>
+        </div>
+      </div>
+
+      <h4 class="section-title">Desglose por Criterios de Evaluación</h4>
+      <div id="modalCriteria" class="criteria-list"></div>
+
+      <h4 class="section-title">Comentarios del Profesor (Feedback)</h4>
+      <div id="modalFeedback"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
