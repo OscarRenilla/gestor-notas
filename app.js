@@ -423,16 +423,16 @@ function init() {
   
   // evento para el botón Copiar script
   $('btnCopyScript').addEventListener('click', async () => {
-  const code = $('extractorCode').textContent;
-  const btn = $('btnCopyScript');
-  try {
-    await navigator.clipboard.writeText(code);
-    btn.textContent = '¡Script copiado!';
-    setTimeout(() => { btn.textContent = 'Copiar script'; }, 2200);
-  } catch {
-    alert('No se pudo copiar automáticamente. Despliega el código y cópialo manualmente.');
-  }
-});
+    const code = $('extractorCode').textContent;
+    const btn = $('btnCopyScript');
+    try {
+      await navigator.clipboard.writeText(code);
+      btn.textContent = '¡Script copiado!';
+      setTimeout(() => { btn.textContent = 'Copiar script'; }, 2200);
+    } catch {
+      alert('No se pudo copiar automáticamente. Despliega el código y cópialo manualmente.');
+    }
+  });
 }
 
 init();
