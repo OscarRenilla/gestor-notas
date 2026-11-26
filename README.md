@@ -7,4 +7,7 @@ gestor-notas/
 └── app.js       # Estado de la interfaz, filtros, ordenación, KPIs y eventos del DOM
 ```
 
-Desplegar con GitHub Pages
+## Autor
+
+- **Óscar Renilla Rodríguez** - [@OscarRenilla](https://github.com/OscarRenilla)
+- **Prtfolio Web** - [PortfolioWeb](https://oscar-renilla-portfolio.vercel.app/)
