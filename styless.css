@@ -63,8 +63,7 @@ h1 {
   gap: 10px;
 }
 
-button,
-.btn-upload {
+button, .btn-upload {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -79,8 +78,7 @@ button,
   gap: 6px;
 }
 
-button:hover,
-.btn-upload:hover {
+button:hover, .btn-upload:hover {
   background: var(--surface-hover);
   border-color: var(--accent);
 }
@@ -96,7 +94,7 @@ button:hover,
   background: #7dd3fc;
 }
 
-/* Selector de Trimestres */
+/* Selector de Trimestres (Tabs) */
 .term-bar {
   display: flex;
   flex-wrap: wrap;
@@ -318,8 +316,7 @@ button:hover,
   margin-bottom: 5px;
 }
 
-input,
-select {
+input, select {
   width: 100%;
   background: var(--bg);
   color: var(--text);
@@ -330,8 +327,7 @@ select {
   outline: none;
 }
 
-input:focus,
-select:focus {
+input:focus, select:focus {
   border-color: var(--accent);
 }
 
@@ -349,8 +345,7 @@ table {
   font-size: 0.9rem;
 }
 
-th,
-td {
+th, td {
   padding: 12px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
@@ -536,14 +531,14 @@ tbody tr:hover td {
   margin-bottom: 20px;
 }
 
+#modalModule {
+  margin-top: 4px;
+}
+
 .modal-score-big {
   font-size: 2rem;
   font-weight: 800;
   color: var(--accent);
-}
-
-#modalModule {
-  margin-top: 4px;
 }
 
 .criteria-list {
