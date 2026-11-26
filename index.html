@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gestor de Notas — ThePower</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -41,11 +43,127 @@
       <button id="btnApplyDates" class="btn-primary">Recalcular trimestres</button>
     </section>
 
-    <!-- Zona de carga -->
-    <div id="dropzone" class="dropzone">
-      <strong>Arrastra aquí tu archivo <code>notas_thepower_YYYY-MM-DD.json</code> o <code>.csv</code></strong>
-      <p>Clasifica automáticamente las tareas por trimestre según su fecha de entrega.</p>
-    </div>
+    <!-- Pantalla inicial: Dropzone + Instrucciones de extracción -->
+    <section id="onboarding">
+      <div id="dropzone" class="dropzone">
+        <strong>Arrastra aquí tu archivo <code>notas_thepower_YYYY-MM-DD.json</code> o <code>.csv</code></strong>
+        <p>Clasifica automáticamente las tareas por trimestre según su fecha de entrega.</p>
+      </div>
+
+      <div class="guide-card">
+        <div class="guide-header">
+          <div>
+            <h2>¿Cómo obtener el archivo desde ThePower?</h2>
+            <p class="subtitle">Ejecuta este script en la consola de tu navegador estando en la pestaña de tus entregas.
+            </p>
+          </div>
+          <button type="button" id="btnCopyScript" class="btn-primary">Copiar script</button>
+        </div>
+
+        <ol class="guide-steps">
+          <li>Inicia sesión en <a href="https://app.thepowermba.com/" target="_blank"
+              rel="noopener">app.thepowermba.com</a> y entra en la pantalla donde aparecen tus tareas/entregas.</li>
+          <li>Abre las herramientas de desarrollador pulsando <strong>F12</strong> (o clic derecho →
+            <em>Inspeccionar</em>) y ve a la pestaña <strong>Console</strong>.</li>
+          <li>Haz clic en <strong>Copiar script</strong>, pégalo en la consola y pulsa <strong>Enter</strong> (si Chrome
+            te pide confirmación, escribe <code>allow pasting</code> antes).</li>
+          <li>Se descargará automáticamente un archivo <code>notas_thepower_AAAA-MM-DD.json</code>. Arrástralo al
+            recuadro de arriba.</li>
+        </ol>
+
+        <details class="code-details">
+          <summary>Ver código del script extractor</summary>
+          <pre><code id="extractorCode">(async () => {
+  const getToken = async () => {
+    for (const k of Object.keys(localStorage)) {
+      const val = localStorage.getItem(k);
+      if (val && val.includes('eyJ')) {
+        const match = val.match(/eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/);
+        if (match) return match[0];
+      }
+    }
+    return new Promise((resolve) => {
+      const req = indexedDB.open('firebaseLocalStorageDb');
+      req.onsuccess = () => {
+        try {
+          const tx = req.result.transaction('firebaseLocalStorage', 'readonly');
+          const store = tx.objectStore('firebaseLocalStorage');
+          const getAll = store.getAll();
+          getAll.onsuccess = () => {
+            const entry = getAll.result.find(x => x?.value?.stsTokenManager?.accessToken);
+            resolve(entry?.value?.stsTokenManager?.accessToken || null);
+          };
+        } catch { resolve(null); }
+      };
+      req.onerror = () => resolve(null);
+    });
+  };
+
+  const calcularTrimestre = (isoDate) => {
+    if (!isoDate) return "Sin fecha";
+    const d = new Date(isoDate);
+    if (isNaN(d)) return "Sin fecha";
+    if (d <= new Date("2026-11-23T23:59:59")) return "1º Trimestre";
+    if (d <= new Date("2027-02-19T23:59:59")) return "2º Trimestre";
+    if (d <= new Date("2027-06-18T23:59:59")) return "3º Trimestre";
+    return "Fuera de curso";
+  };
+
+  const token = await getToken();
+  if (!token) return console.error("No se encontró el token de sesión.");
+
+  const ids = [...new Set(
+    [...document.querySelectorAll('a[href]')]
+      .map(a => a.href.match(/[a-f0-9]{24}/)?.[0])
+      .filter(Boolean)
+  )];
+
+  console.log(`Extrayendo ${ids.length} entregas...`);
+
+  const resultados = await Promise.all(ids.map(async (id) => {
+    const res = await fetch(`https://api.thepowermba.com/api/challenges/${id}?liveEventsLimit=3`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const score = data?.deliverable?.score ? parseFloat(data.deliverable.score) : null;
+    const fechaRef = data?.availableDates?.endDate || data?.deliverable?.updatedAt || data?.createdAt || null;
+
+    const mapaNotas = new Map(
+      (data?.deliverable?.scoreByCriteria || []).map(c => [c._id, c.score])
+    );
+
+    const criterios = (data?.evaluationCriteria || []).map(c => ({
+      criterio: c.criteria,
+      maximo: c.score,
+      obtenido: mapaNotas.has(c._id) ? mapaNotas.get(c._id) : null
+    }));
+
+    return {
+      id,
+      Trimestre: calcularTrimestre(fechaRef),
+      FechaEntrega: fechaRef,
+      Asignatura: data?.promotion?.title || "Sin asignatura",
+      Modulo: data?.module?.name || "-",
+      Tarea: data?.title || id,
+      Estado: data?.deliverable?.status || data?.status || "-",
+      Nota: score,
+      Feedback: data?.deliverable?.feedback || null,
+      Criterios: criterios
+    };
+  }));
+
+  const limpios = resultados.filter(Boolean).sort((a, b) => a.Asignatura.localeCompare(b.Asignatura));
+  const blob = new Blob([JSON.stringify(limpios, null, 2)], { type: 'application/json;charset=utf-8;' });
+  const enlace = document.createElement("a");
+  enlace.href = URL.createObjectURL(blob);
+  enlace.download = `notas_thepower_${new Date().toISOString().slice(0, 10)}.json`;
+  enlace.click();
+})();</code></pre>
+        </details>
+      </div>
+    </section>
 
     <!-- Dashboard principal -->
     <main id="dashboard" class="hidden">
@@ -53,9 +171,12 @@
       <div class="term-bar">
         <div class="term-tabs" id="termTabs">
           <button class="term-tab active" data-term="">Todos <span class="term-count" id="countAll">(0)</span></button>
-          <button class="term-tab" data-term="1º Trimestre">1.er Trimestre <span class="term-count" id="countT1">(0)</span></button>
-          <button class="term-tab" data-term="2º Trimestre">2.º Trimestre <span class="term-count" id="countT2">(0)</span></button>
-          <button class="term-tab" data-term="3º Trimestre">3.er Trimestre <span class="term-count" id="countT3">(0)</span></button>
+          <button class="term-tab" data-term="1º Trimestre">1.er Trimestre <span class="term-count"
+              id="countT1">(0)</span></button>
+          <button class="term-tab" data-term="2º Trimestre">2.º Trimestre <span class="term-count"
+              id="countT2">(0)</span></button>
+          <button class="term-tab" data-term="3º Trimestre">3.er Trimestre <span class="term-count"
+              id="countT3">(0)</span></button>
         </div>
         <span class="subtitle" id="termRangeLabel">Curso completo</span>
       </div>
@@ -169,4 +290,5 @@
 
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

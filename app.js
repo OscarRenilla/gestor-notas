@@ -39,7 +39,7 @@ function loadRecords(records, sourceName = 'Sesión guardada') {
     JSON.stringify({ records, sourceName, date: new Date().toLocaleString() })
   );
 
-  $('dropzone').classList.add('hidden');
+  $('onboarding').classList.add('hidden');
   $('dashboard').classList.remove('hidden');
   $('btnToggleDates').classList.remove('hidden');
   $('btnExport').classList.remove('hidden');
@@ -420,6 +420,19 @@ function init() {
       }
     } catch {}
   }
+  
+  // evento para el botón Copiar script
+  $('btnCopyScript').addEventListener('click', async () => {
+  const code = $('extractorCode').textContent;
+  const btn = $('btnCopyScript');
+  try {
+    await navigator.clipboard.writeText(code);
+    btn.textContent = '¡Script copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar script'; }, 2200);
+  } catch {
+    alert('No se pudo copiar automáticamente. Despliega el código y cópialo manualmente.');
+  }
+});
 }
 
 init();
